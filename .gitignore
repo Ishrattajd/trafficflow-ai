@@ -20,3 +20,14 @@ results/*.log
 
 # Environment variables & secrets
 .env
+
+data/raw/
+data/*.h5
+data/*.csv
+app_data_mock/
+*.pt
+__pycache__/
+.ipynb_checkpoints/
+results/*.npy
+
+!results/*.pt

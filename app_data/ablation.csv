@@ -1,0 +1,3 @@
+variant,mae_15,mae_30,mae_60
+Full model (with road graph),3.005,3.565,4.388
+Without road graph,3.013,3.64,4.51

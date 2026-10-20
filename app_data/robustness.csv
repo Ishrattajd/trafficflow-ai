@@ -9,3 +9,8 @@ no_graph,10,4.088
 no_graph,20,4.549
 no_graph,30,4.999
 no_graph,50,5.927
+no_mask,0,3.537
+no_mask,10,4.076
+no_mask,20,4.616
+no_mask,30,5.152
+no_mask,50,6.242

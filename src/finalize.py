@@ -53,7 +53,10 @@ json.dump(metrics, open('app_data/metrics.json', 'w'), indent=2)
 sub = np.arange(0, len(t_test), 4)
 ysub = P['speed'][t_test[sub][:, None] + np.arange(1, HOR + 1)[None, :]]
 rob = []
-for n, m in models.items():
+rob_models = dict(models)
+if os.path.exists('results/no_mask.pt'):
+    rob_models['no_mask'] = load('no_mask')
+for n, m in rob_models.items():
     for pct in (0, 10, 20, 30, 50):
         pr = predict(m, P, 'test', drop_frac=pct / 100, ids=sub)
         mae = float(np.nanmean(np.abs(pr - ysub)))

@@ -6,12 +6,13 @@
   "step_minutes": 5,
   "n_timesteps": 864,
   "models": [
+    "trafficflow_blend",
     "trafficflow_st",
     "no_graph",
     "historical_average",
     "persistence"
   ],
-  "main_model": "trafficflow_st",
+  "main_model": "trafficflow_blend",
   "thresholds": {
     "free": 0.8,
     "slow": 0.5

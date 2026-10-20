@@ -112,4 +112,4 @@ Real dashboard running on the final `app_data/` (forecast issued Tue 5 June 2012
 Longer training on a GPU, learned (adaptive) graph edges, uncertainty intervals on forecasts, more cities and recent data, live sensor feeds.
 
 ## Team
-Team BitZen: Ishrattaj Dharwad (backend, model, evaluation) and teammate (frontend dashboard). Thanks to the DCRNN authors for METR-LA and the road-graph recipe.
+Team BitZen: Ishrattaj Dharwad (backend, model, evaluation) and Farhan Dharwad (frontend dashboard). Thanks to the DCRNN authors for METR-LA and the road-graph recipe.

@@ -1,0 +1,11 @@
+model,missing_pct,mae
+trafficflow_st,0,3.56
+trafficflow_st,10,3.824
+trafficflow_st,20,4.111
+trafficflow_st,30,4.416
+trafficflow_st,50,5.178
+no_graph,0,3.626
+no_graph,10,4.088
+no_graph,20,4.549
+no_graph,30,4.999
+no_graph,50,5.927

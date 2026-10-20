@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Raw data & mock data
+data/*
+!data/download_data.py
+app_data_mock/
+
+# Checkpoints and logs
+results/*.pt
+results/*.pth
+results/*.log
+
+# Environment variables & secrets
+.env

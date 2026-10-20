@@ -3,8 +3,9 @@
 **Forecasting traffic speed and congestion up to 60 minutes ahead, using the road network itself.**
 Team BitZen | AI Innovation Hackathon 2026, Challenge 06
 
-- Live dashboard: `PASTE_STREAMLIT_LINK_HERE`
-- Demo video: `PASTE_VIDEO_LINK_HERE` (or `docs/demo.mp4`)
+- Live dashboard: https://trafficflow-ai-tzddyehsg9owsfg2rkq7am.streamlit.app/
+
+- Demo video: https://drive.google.com/file/d/1PGNimzatadf7R9VHE89Oafc9ssuL7hz4/view?usp=sharing
 
 ## Problem
 Congestion forms and spreads across connected roads within minutes, but most tools only show current conditions. Drivers and traffic operators need to know what is coming, and sensors break, so a forecast must still work when data is missing.

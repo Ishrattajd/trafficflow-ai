@@ -10,6 +10,15 @@ DATA = ROOT / 'app_data' if (ROOT / 'app_data' / 'meta.json').exists() else ROOT
 COLORS = {0: '#34C759', 1: '#FF9F0A', 2: '#FF453A', -1: '#9AA5B1'}
 NAMES = {0: 'Free-flowing', 1: 'Slow', 2: 'Congested', -1: 'No data'}
 
+LABELS = {'trafficflow_st': 'TrafficFlow-ST (road graph)',
+          'no_graph': 'Same model, no road graph',
+          'historical_average': 'Historical Average',
+          'persistence': 'Persistence (last value)',
+          'trafficflow_blend': 'TrafficFlow-ST + historical pattern'}
+
+def label(m):
+    return LABELS.get(m, m)
+
 @st.cache_data
 def load(path):
     p = Path(path)
@@ -28,7 +37,7 @@ def levels(speed, ff, th):
     out = np.where(r >= th['free'], 0, np.where(r >= th['slow'], 1, 2))
     return np.where(np.isnan(speed), -1, out)
 
-def network_map(sensors, edges, lv, title, dark=False):
+def network_map(sensors, edges, lv, title, dark=False, lock=False):
     fig = go.Figure()
     xs, ys = [], []
     for s, t in zip(edges.source, edges.target):
@@ -52,7 +61,9 @@ def network_map(sensors, edges, lv, title, dark=False):
         legend=dict(orientation='h', yanchor='bottom', y=0.01, xanchor='left', x=0.01,
                     bgcolor='rgba(26,29,36,0.75)' if dark else 'rgba(244,246,249,0.85)'),
         map=dict(center=dict(lat=sensors.latitude.mean(), lon=sensors.longitude.mean()), zoom=9.5),
-        uirevision='map')
+        uirevision='locked' if lock else 'free')
+    if lock:
+        fig.update_layout(dragmode=False)
     return fig
 
 st.set_page_config(page_title='TrafficFlow AI', page_icon='🚦', layout='wide')
@@ -68,6 +79,8 @@ th = meta['thresholds']
 dark = getattr(st.context.theme, 'type', 'light') == 'dark'
 
 def default_index(ts, T):
+    if T - 13 >= 90:
+        return 90
     # first weekday 08:00 in the window, so the demo opens on rush hour
     for i in range(T - 12):
         x = ts.iloc[i]
@@ -78,11 +91,13 @@ def default_index(ts, T):
 st.sidebar.title('TrafficFlow AI')
 names = list(preds)
 model = st.sidebar.selectbox('Model', names,
-        index=names.index(meta['main_model']) if meta['main_model'] in names else 0)
+        index=names.index(meta['main_model']) if meta['main_model'] in names else 0,
+        format_func=label)
 t = st.sidebar.slider('Forecast issued at (index)', 0, T - 13, default_index(ts, T))
 st.sidebar.caption(str(ts.iloc[t]))
 minutes = st.sidebar.select_slider('Minutes ahead', options=list(range(5, 65, 5)), value=30)
 map_mode = st.sidebar.radio('Map style', ['Light (Google-style)', 'Dark', 'Match app theme'], index=0)
+lock_maps = st.sidebar.checkbox('Lock map view (both maps stay aligned)', value=True)
 map_dark = dark if map_mode == 'Match app theme' else (map_mode == 'Dark')
 h = minutes // 5 - 1
 
@@ -104,11 +119,14 @@ with tab_map:
     mae = float(np.nanmean(np.abs(pred_now - actual_now))) if ok.any() else float('nan')
     match = float((lv_pred[ok] == lv_act[ok]).mean() * 100) if ok.any() else float('nan')
     c1, c2 = st.columns(2)
-    c1.metric('Mean absolute error (mph)', f'{mae:.2f}')
-    c2.metric('Congestion level matched', f'{match:.0f}%')
+    c1.metric('Error at this moment (mph)', f'{mae:.2f}',
+              help='Average |predicted - actual| over all sensors at this one forecast time and horizon. A single moment is noisy; the full-test average is on the Model Comparison tab.')
+    c2.metric('Congestion level matched at this moment', f'{match:.0f}%',
+              help='Average |predicted - actual| over all sensors at this one forecast time and horizon. A single moment is noisy; the full-test average is on the Model Comparison tab.')
+    st.caption('These two numbers describe one moment only. The real average over the whole test period is on the Model Comparison tab.')
     m1, m2 = st.columns(2)
-    m1.plotly_chart(network_map(sensors, edges, lv_pred, f'Predicted (+{minutes} min)', dark=map_dark), width='stretch', key='map_pred')
-    m2.plotly_chart(network_map(sensors, edges, lv_act, f'Actual (+{minutes} min)', dark=map_dark), width='stretch', key='map_act')
+    m1.plotly_chart(network_map(sensors, edges, lv_pred, f'Predicted (+{minutes} min)', dark=map_dark, lock=lock_maps), width='stretch', key='map_pred', config={'scrollZoom': not lock_maps})
+    m2.plotly_chart(network_map(sensors, edges, lv_act, f'Actual (+{minutes} min)', dark=map_dark, lock=lock_maps), width='stretch', key='map_act', config={'scrollZoom': not lock_maps})
 
 with tab_sensor:
     st.subheader('Sensor Detail')
@@ -118,7 +136,8 @@ with tab_sensor:
     sid = st.selectbox('Sensor', ids, index=default_pos, key='sensor_pick',
                        format_func=lambda i: f'Sensor {i}')
     others = [m for m in names if m != model]
-    overlay = st.multiselect('Overlay other models', others, default=[], key='overlay_models')
+    overlay = st.multiselect('Overlay other models', others, default=[], key='overlay_models',
+                             format_func=label)
 
     t0 = max(0, t - 11)
     x_hist = ts.iloc[t0:t + 1]
@@ -137,11 +156,11 @@ with tab_sensor:
                              line=dict(color=ink, width=2)))
     fig.add_trace(go.Scatter(x=x_fut, y=y_fut, mode='lines', name='Actual (future)',
                              line=dict(color=ink, width=2, dash='dot')))
-    fig.add_trace(go.Scatter(x=x_fut, y=y_pred, mode='lines+markers', name=f'Forecast ({model})',
+    fig.add_trace(go.Scatter(x=x_fut, y=y_pred, mode='lines+markers', name=f'Forecast ({label(model)})',
                              line=dict(color=blue, width=2, dash='dash'),
                              fill='tonexty', fillcolor='rgba(74,144,226,0.20)'))
     for i, m in enumerate(overlay):
-        fig.add_trace(go.Scatter(x=x_fut, y=preds[m][t, :, sid], mode='lines', name=f'Forecast ({m})',
+        fig.add_trace(go.Scatter(x=x_fut, y=preds[m][t, :, sid], mode='lines', name=f'Forecast ({label(m)})',
                                  line=dict(color=extra[i % len(extra)], width=1.5, dash='dash')))
 
     xt = ts.iloc[t].to_pydatetime()
@@ -177,9 +196,9 @@ with tab_models:
               ('macro_f1', 'Macro-F1', True)]
 
     cols, higher = [], {}
-    for key, label, hib in groups:
+    for key, lbl, hib in groups:
         for hz in horizons:
-            c = f'{label} @{hz}min'
+            c = f'{lbl} @{hz}min'
             cols.append((c, key, hz))
             higher[c] = hib
 
@@ -193,6 +212,7 @@ with tab_models:
                 row[c] = np.nan
         rows[m] = row
     df = pd.DataFrame.from_dict(rows, orient='index')
+    df.index = [label(m) for m in df.index]
     df.index.name = 'Model'
 
     hl_bg = 'rgba(90,160,240,0.30)' if dark else 'rgba(74,144,226,0.20)'
@@ -225,7 +245,7 @@ with tab_models:
                 vals.append(float(metrics[m]['mae'][hz]))
             except (KeyError, TypeError, ValueError):
                 vals.append(None)
-        figb.add_trace(go.Bar(x=[f'{hz} min' for hz in horizons], y=vals, name=m,
+        figb.add_trace(go.Bar(x=[f'{hz} min' for hz in horizons], y=vals, name=label(m),
                               marker_color=blue_shades[m]))
     figb.update_layout(barmode='group', title='MAE by forecast horizon',
                        xaxis_title='Forecast horizon (minutes ahead)', yaxis_title='MAE (mph)',
@@ -254,7 +274,7 @@ with tab_rob:
                 col, w = other_colors[k % len(other_colors)], 2
                 k += 1
             figr.add_trace(go.Scatter(x=d['missing_pct'], y=d['mae'], mode='lines+markers',
-                                      name=m, line=dict(color=col, width=w)))
+                                      name=label(m), line=dict(color=col, width=w)))
         figr.update_layout(title='Forecast error vs. share of missing sensors',
                            xaxis_title='Missing sensors (%)', yaxis_title='MAE (mph)',
                            height=420, template=plot_tpl,
@@ -297,6 +317,13 @@ with tab_about:
              'using a graph-based spatiotemporal model, and turns forecasts into congestion levels '
              'shown on an interactive map.')
 
+    st.markdown('**Model**')
+    if 'trafficflow_blend' in meta['models']:
+        st.write('The final model is a blend of a neural network (a graph-based spatiotemporal model) '
+                 'and the historical pattern for each sensor and time of day.')
+    else:
+        st.write('The main model is a graph-based spatiotemporal neural network.')
+
     st.markdown('**Architecture**')
     if arch.exists():
         st.image(str(arch), width='stretch')
@@ -309,7 +336,10 @@ with tab_about:
              'No personal or identifiable mobility data.')
 
     st.markdown('**Limitations**')
-    st.write(f"Trained on {meta['region']} highways, not city streets worldwide. "
+    blend_prefix = ('The final model blends a neural network with the historical pattern, so on unusual days '
+                    '(incidents, holidays) it leans partly on typical behaviour. '
+                    if 'trafficflow_blend' in meta['models'] else '')
+    st.write(f"{blend_prefix}Trained on {meta['region']} highways, not city streets worldwide. "
              f"The data is from {year}, and traffic patterns have changed. "
              'Forecast error grows with the horizon, so long-range forecasts are less reliable. '
              'Sensors cover mainly major highways. '
